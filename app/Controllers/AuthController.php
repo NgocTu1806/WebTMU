@@ -186,15 +186,13 @@ class AuthController extends Controller
     // QUÊN MẬT KHẨU / ĐẶT LẠI MẬT KHẨU
     // =========================================================================
 
-    public function forgotForm(array $params = []): void
+   public function forgotForm(array $params = []): void
     {
-        $this->redirectIfAuthenticated();
         $this->view('auth.forgot_password', ['title' => 'Quên mật khẩu — TMU Tài Liệu']);
     }
 
     public function forgot(array $params = []): void
     {
-        $this->redirectIfAuthenticated();
         $this->csrfValidate();
 
         $email  = strtolower(trim($_POST['email'] ?? ''));
