@@ -94,28 +94,34 @@ class User extends Model
         $params = [];
 
         if ($search !== '') {
-            $where[] = "(full_name LIKE ? OR email LIKE ? OR username LIKE ?)";
+            $where[] = "(u.full_name LIKE ? OR u.email LIKE ? OR u.username LIKE ? OR u.student_id LIKE ?)";
+            $params[] = "%{$search}%";
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
         }
         if ($role !== '') {
-            $where[] = "role = ?";
+            $where[] = "u.role = ?";
             $params[] = $role;
         }
         if ($status !== '') {
-            $where[] = "status = ?";
+            $where[] = "u.status = ?";
             $params[] = $status;
         }
 
         $whereClause = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-        $countSql = "SELECT COUNT(*) FROM users {$whereClause}";
+        $countSql = "SELECT COUNT(*) FROM users u {$whereClause}";
         $total = (int)$this->db->fetchColumn($countSql, $params);
 
         $offset = ($page - 1) * $perPage;
-        $sql = "SELECT id, username, email, full_name, avatar, student_id, status, role, created_at, last_login
-                FROM users {$whereClause}
-                ORDER BY created_at DESC
+        $sql = "SELECT u.id, u.username, u.email, u.full_name, u.avatar, u.student_id, u.status, u.role, u.created_at, u.last_login,
+                       ub.reason AS ban_reason, ub.banned_at, ub.expires_at AS ban_expires_at,
+                       admin_u.full_name AS banned_by_name
+                FROM users u
+                LEFT JOIN user_bans ub ON ub.user_id = u.id
+                LEFT JOIN users admin_u ON admin_u.id = ub.banned_by
+                {$whereClause}
+                ORDER BY u.created_at DESC
                 LIMIT {$perPage} OFFSET {$offset}";
 
         return [
@@ -123,7 +129,7 @@ class User extends Model
             'total'        => $total,
             'per_page'     => $perPage,
             'current_page' => $page,
-            'last_page'    => (int)ceil($total / $perPage),
+            'last_page'    => max(1, (int)ceil($total / $perPage)),
         ];
     }
 

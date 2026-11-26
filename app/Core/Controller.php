@@ -57,12 +57,22 @@ abstract class Controller
         }
 
         $user = (new \App\Models\User())->findById((int)userId());
-        if (!$user || $user['status'] === 'locked') {
+        $lockMessage = null;
+        if (!$user) {
+            $lockMessage = 'Tài khoản của bạn không còn tồn tại.';
+        } elseif ($user['status'] === 'locked') {
+            $lockMessage = (new \App\Models\UserBan())->handleLockedUser((int)$user['id']);
+            if ($lockMessage === null) {
+                $user['status'] = 'active';
+            }
+        }
+
+        if ($lockMessage !== null) {
             (new \App\Services\AuthService())->logout();
             if (session_status() === PHP_SESSION_NONE) {
                 session_start();
             }
-            flash('error', 'Tài khoản của bạn đã bị khóa hoặc không tồn tại.');
+            flash('error', $lockMessage);
             $this->redirect('/login');
         }
 

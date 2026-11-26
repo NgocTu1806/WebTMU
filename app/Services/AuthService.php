@@ -5,6 +5,7 @@ namespace App\Services;
 
 use App\Core\Database;
 use App\Models\User;
+use App\Models\UserBan;
 
 class AuthService
 {
@@ -13,12 +14,14 @@ class AuthService
     private const DUMMY_HASH = '$2y$12$wL5wYN7jEQfxroPFWld.3OQ8Ba/Q8oEQJEoVI3SRT5eJABcBkW14.';
 
     private User $userModel;
+    private UserBan $userBanModel;
     private Database $db;
 
     public function __construct()
     {
-        $this->userModel = new User();
-        $this->db        = Database::getInstance();
+        $this->userModel    = new User();
+        $this->userBanModel = new UserBan();
+        $this->db           = Database::getInstance();
     }
 
     public static function hashPassword(string $password): string
@@ -84,7 +87,11 @@ class AuthService
         }
 
         if ($user['status'] === 'locked') {
-            return ['success' => false, 'error' => 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên.'];
+            $lockMsg = $this->userBanModel->handleLockedUser((int)$user['id']);
+            if ($lockMsg !== null) {
+                return ['success' => false, 'error' => $lockMsg];
+            }
+            $user['status'] = 'active';
         }
 
         $this->clearFailedAttempts($email, $ip);
@@ -181,6 +188,13 @@ class AuthService
         }
 
         $user = $this->userModel->findById($userId);
+        if ($user && $user['status'] === 'locked') {
+            $lockMsg = $this->userBanModel->handleLockedUser($userId);
+            if ($lockMsg === null) {
+                $user['status'] = 'active';
+            }
+        }
+
         if (
             !$user
             || $user['status'] === 'locked'
