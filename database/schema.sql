@@ -283,4 +283,17 @@ CREATE TABLE IF NOT EXISTS forum_answers (
     CONSTRAINT fk_forum_answers_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================================
+-- USER_BANS (Quan hệ 1 - 1 với USERS)
+-- ============================================================
+CREATE TABLE user_bans (
+    user_id     INT UNSIGNED PRIMARY KEY,
+    banned_by   INT UNSIGNED DEFAULT NULL COMMENT 'Admin/Moderator thực hiện khóa',
+    reason      TEXT NOT NULL COMMENT 'Lý do khóa tài khoản',
+    banned_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at  DATETIME DEFAULT NULL COMMENT 'NULL = khóa vĩnh viễn',
+    CONSTRAINT fk_user_bans_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_user_bans_admin FOREIGN KEY (banned_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;

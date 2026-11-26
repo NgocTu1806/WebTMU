@@ -61,12 +61,22 @@ class App
         // Kiểm tra trạng thái tài khoản theo thời gian thực nếu đang đăng nhập
         if (!empty($_SESSION['user_id'])) {
             $freshUser = (new \App\Models\User())->findById((int)$_SESSION['user_id']);
-            if (!$freshUser || ($freshUser['status'] ?? '') === 'locked') {
+            $lockMessage = null;
+            if (!$freshUser) {
+                $lockMessage = 'Tài khoản của bạn không còn tồn tại.';
+            } elseif (($freshUser['status'] ?? '') === 'locked') {
+                $lockMessage = (new \App\Models\UserBan())->handleLockedUser((int)$freshUser['id']);
+                if ($lockMessage === null) {
+                    $freshUser['status'] = 'active';
+                }
+            }
+
+            if ($lockMessage !== null) {
                 (new \App\Services\AuthService())->logout();
                 if (session_status() === PHP_SESSION_NONE) {
                     session_start();
                 }
-                flash('error', 'Tài khoản của bạn đã bị khóa hoặc không còn tồn tại.');
+                flash('error', $lockMessage);
                 header('Location: ' . url('/login'));
                 exit;
             }
