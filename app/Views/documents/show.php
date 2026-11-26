@@ -56,84 +56,113 @@
 
                 <!-- Document Preview -->
                 <?php
-                $ext = strtolower(pathinfo((string)$doc['original_filename'], PATHINFO_EXTENSION));
-                $isPdf = ($doc['mime_type'] === 'application/pdf' || $ext === 'pdf');
-                $isDocx = ($ext === 'docx' || str_contains((string)$doc['mime_type'], 'wordprocessingml'));
-                $isDoc = ($ext === 'doc' || str_contains((string)$doc['mime_type'], 'msword'));
+                $ext    = strtolower(pathinfo((string)$doc['original_filename'], PATHINFO_EXTENSION));
+                $mime   = (string)($doc['mime_type'] ?? '');
+                $isPdf  = ($mime === 'application/pdf' || $ext === 'pdf');
+                $isDoc  = ($ext === 'doc' || str_contains($mime, 'msword'));
+                $isTxt  = ($ext === 'txt' || str_starts_with($mime, 'text/plain'));
+                $previewUrl  = url('/documents/' . $doc['id'] . '/preview');
+                $downloadUrl = url('/documents/' . $doc['id'] . '/download');
                 ?>
 
                 <?php if ($isPdf): ?>
                     <h5 class="fw-bold mb-3"><i class="bi bi-file-earmark-pdf text-danger me-2"></i>Xem trước trực tiếp (PDF)</h5>
                     <div class="ratio ratio-16x9 rounded overflow-hidden shadow-sm border mb-4" style="min-height: 550px;">
-                        <iframe src="<?= url('/documents/' . $doc['id'] . '/preview') ?>" allowfullscreen></iframe>
+                        <iframe src="<?= $previewUrl ?>" allowfullscreen></iframe>
                     </div>
-                <?php elseif ($isDocx): ?>
+                <?php elseif ($isTxt): ?>
                     <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h5 class="fw-bold mb-0">
-                                <i class="bi bi-file-earmark-word text-primary me-2"></i>Xem trước tài liệu Word (.docx)
+                                <i class="bi bi-file-earmark-text text-secondary me-2"></i>Xem trước tài liệu văn bản (.txt)
                             </h5>
-                            <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
-                                <i class="bi bi-eye me-1"></i>Trình đọc trực tiếp
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle px-2 py-1">
+                                <i class="bi bi-eye me-1"></i>Trình đọc văn bản
                             </span>
                         </div>
                         <div class="card border shadow-sm rounded-3 overflow-hidden">
                             <div class="card-header bg-light d-flex justify-content-between align-items-center py-2 px-3 border-bottom">
                                 <span class="small text-muted text-truncate" style="max-width: 70%;">
-                                    <i class="bi bi-file-text me-1 text-primary"></i><?= e($doc['original_filename']) ?>
+                                    <i class="bi bi-filetype-txt me-1 text-secondary"></i><?= e($doc['original_filename']) ?>
                                 </span>
                                 <div class="d-flex gap-2">
-                                    <a href="<?= url('/documents/' . $doc['id'] . '/download') ?>" class="btn btn-xs btn-outline-primary py-1 px-2 small">
+                                    <button type="button" id="txt-copy-btn" class="btn btn-xs btn-outline-secondary py-1 px-2 small" style="display: none;">
+                                        <i class="bi bi-clipboard me-1"></i>Sao chép
+                                    </button>
+                                    <a href="<?= $downloadUrl ?>" class="btn btn-xs btn-outline-primary py-1 px-2 small">
                                         <i class="bi bi-download me-1"></i>Tải file gốc
                                     </a>
                                 </div>
                             </div>
-                            <div id="docx-loading" class="text-center py-5 bg-white">
-                                <div class="spinner-border text-primary mb-2" role="status"></div>
-                                <div class="text-muted small">Đang tải và hiển thị nội dung tài liệu Word...</div>
+                            <div id="txt-loading" class="text-center py-5 bg-white">
+                                <div class="spinner-border text-secondary mb-2" role="status"></div>
+                                <div class="text-muted small">Đang tải nội dung văn bản...</div>
                             </div>
-                            <div id="docx-wrapper" class="bg-secondary bg-opacity-10 p-3" style="display: none;">
-                                <div id="docx-container" class="shadow-sm mx-auto bg-white p-4" style="min-height: 400px; max-height: 700px; overflow-y: auto;"></div>
+                            <div id="txt-truncated-note" class="alert alert-warning rounded-0 border-0 border-bottom mb-0 py-2 px-3 small" style="display: none;">
+                                <i class="bi bi-info-circle me-1"></i>Tệp văn bản khá lớn, trình xem trước chỉ hiển thị 500.000 ký tự đầu tiên. Vui lòng tải file gốc để xem toàn bộ.
+                            </div>
+                            <div id="txt-wrapper" class="bg-white p-0" style="display: none;">
+                                <pre id="txt-container" class="mb-0 p-4 text-dark bg-white" style="min-height: 240px; max-height: 600px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9rem; line-height: 1.6;"></pre>
                             </div>
                         </div>
                     </div>
-                    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.3/dist/docx-preview.min.js"></script>
                     <script>
-                    document.addEventListener('DOMContentLoaded', function() {
-                        const container = document.getElementById('docx-container');
-                        const loading = document.getElementById('docx-loading');
-                        const wrapper = document.getElementById('docx-wrapper');
-                        if (!container || !loading) return;
+                    document.addEventListener('DOMContentLoaded', async function() {
+                        const container = document.getElementById('txt-container');
+                        const loading = document.getElementById('txt-loading');
+                        const wrapper = document.getElementById('txt-wrapper');
+                        const copyBtn = document.getElementById('txt-copy-btn');
+                        const truncatedNote = document.getElementById('txt-truncated-note');
+                        if (!container || !loading || !wrapper) return;
 
-                        fetch('<?= url('/documents/' . $doc['id'] . '/preview') ?>')
-                            .then(function(res) {
-                                if (!res.ok) throw new Error('Không thể tải file docx.');
-                                return res.arrayBuffer();
-                            })
-                            .then(function(buffer) {
-                                return docx.renderAsync(buffer, container, null, {
-                                    className: 'docx-preview-content',
-                                    inWrapper: true,
-                                    ignoreWidth: false,
-                                    ignoreHeight: false
+                        try {
+                            const res = await fetch('<?= $previewUrl ?>');
+                            if (!res.ok) throw new Error('Không thể tải file văn bản.');
+                            const buffer = await res.arrayBuffer();
+
+                            let text = '';
+                            try {
+                                text = new TextDecoder('utf-8', { fatal: true }).decode(buffer);
+                            } catch (decodeErr) {
+                                text = new TextDecoder('windows-1252').decode(buffer);
+                            }
+
+                            const maxChars = 500000;
+                            if (text.length > maxChars) {
+                                text = text.slice(0, maxChars);
+                                if (truncatedNote) truncatedNote.style.display = 'block';
+                            }
+
+                            container.textContent = text;
+                            loading.style.display = 'none';
+                            wrapper.style.display = 'block';
+
+                            if (copyBtn && navigator.clipboard) {
+                                copyBtn.style.display = 'inline-block';
+                                copyBtn.addEventListener('click', async function() {
+                                    try {
+                                        await navigator.clipboard.writeText(container.textContent || '');
+                                        copyBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Đã sao chép';
+                                        setTimeout(() => {
+                                            copyBtn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Sao chép';
+                                        }, 2000);
+                                    } catch (e) {
+                                        console.error('Copy failed:', e);
+                                    }
                                 });
-                            })
-                            .then(function() {
-                                loading.style.display = 'none';
-                                wrapper.style.display = 'block';
-                            })
-                            .catch(function(err) {
-                                console.error('DOCX preview error:', err);
-                                loading.innerHTML = `
-                                    <div class="py-4 px-3 text-center">
-                                        <i class="bi bi-file-earmark-word text-primary fs-1 mb-2 d-block"></i>
-                                        <p class="text-muted small mb-3">Tài liệu Word này có định dạng đặc thù hoặc chứa macro. Vui lòng tải file về máy để xem trọn vẹn bằng Microsoft Word.</p>
-                                        <a href="<?= url('/documents/' . $doc['id'] . '/download') ?>" class="btn btn-primary btn-sm px-4">
-                                            <i class="bi bi-download me-1"></i>Tải file Word về máy
-                                        </a>
-                                    </div>
-                                `;
-                            });
+                            }
+                        } catch (err) {
+                            console.error('TXT preview error:', err);
+                            loading.innerHTML = `
+                                <div class="py-4 px-3 text-center">
+                                    <i class="bi bi-file-earmark-text text-secondary fs-1 mb-2 d-block"></i>
+                                    <p class="text-muted small mb-3">Không thể tải xem trước tệp văn bản này. Vui lòng tải file về máy để xem.</p>
+                                    <a href="<?= $downloadUrl ?>" class="btn btn-primary btn-sm px-4">
+                                        <i class="bi bi-download me-1"></i>Tải file về máy
+                                    </a>
+                                </div>
+                            `;
+                        }
                     });
                     </script>
                 <?php elseif ($isDoc): ?>
@@ -146,7 +175,7 @@
                             Tài liệu định dạng Word cũ (<strong>.doc Binary</strong>). Do định dạng mã hóa nhị phân độc quyền của Microsoft Office, bạn hãy tải file về để xem trọn vẹn trên máy tính.
                         </p>
                         <div>
-                            <a href="<?= url('/documents/' . $doc['id'] . '/download') ?>" class="btn btn-primary px-4 py-2 fw-semibold">
+                            <a href="<?= $downloadUrl ?>" class="btn btn-primary px-4 py-2 fw-semibold">
                                 <i class="bi bi-download me-2"></i>Tải xuống file Word (<?= formatSize((int)$doc['file_size']) ?>)
                             </a>
                         </div>

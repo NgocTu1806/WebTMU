@@ -105,9 +105,17 @@ class DocumentController extends Controller
         }
 
         $doc = $this->documentModel->getWithDetails((int)$params['id']);
-        if (!$doc || $doc['status'] !== 'approved') {
+        if (!$doc) {
             http_response_code(404);
-            die('Tài liệu không tồn tại hoặc chưa được duyệt.');
+            die('Tài liệu không tồn tại.');
+        }
+
+        if ($doc['status'] !== 'approved') {
+            $user = currentUser();
+            if (!$user || ((int)$user['id'] !== (int)$doc['user_id'] && !isModerator())) {
+                http_response_code(403);
+                die('Tài liệu chưa được duyệt.');
+            }
         }
 
         $filePath = $this->fileService->resolveDocumentPath((string)$doc['file_path']);

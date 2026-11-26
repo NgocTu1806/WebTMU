@@ -2,8 +2,9 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     
-    // Auto-dismiss alerts after 5 seconds
-    document.querySelectorAll('.alert:not(.alert-permanent)').forEach(function(alert) {
+    // Auto-dismiss only dismissible flash alerts after 5 seconds (never touch modal/static alerts)
+    document.querySelectorAll('.alert.alert-dismissible:not(.alert-permanent)').forEach(function(alert) {
+        if (alert.closest('.modal')) return;
         setTimeout(function() {
             const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
             if (bsAlert) bsAlert.close();

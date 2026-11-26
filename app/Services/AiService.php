@@ -145,7 +145,7 @@ class AiService
         // Explicit off-topic subjects (weather, lottery, sports, cooking, horoscope, romance, games, poetry, trivia...)
         $offTopicRegex = '/(thời tiết|nhiệt độ|dự báo|mưa nắng|xổ số|lô đề|vietlott|bóng đá|tỷ số|tỉ số|world cup|ngoại hạng anh|nấu ăn|món ăn|công thức nấu|tối nay ăn gì|du lịch|vé máy bay|khách sạn|giá vàng|chứng khoán|bitcoin|crypto|tử vi|xem bói|cung hoàng đạo|thầy bói|người yêu|tình cảm|thả thính|tán gái|tán trai|chuyện cười|kể chuyện|làm thơ|bài thơ|sáng tác thơ|ca sĩ|diễn viên|showbiz|phim ảnh|xem phim|chơi game|liên quân|pubg|valorant|lol|liên minh|giảm cân|tập gym|bóng rổ)/iu';
         $hasSiteDocKeyword = (bool)preg_match(
-            '/(web|website|trang|tmu|thương mại|hệ thống|tài liệu|học liệu|giáo trình|slide|bài giảng|đề thi|đề cương|bài tập|ôn tập|tài khoản|đăng nhập|đăng ký|đăng xuất|mật khẩu|hồ sơ|avatar|ảnh đại diện|đăng tải|upload|tải lên|tải xuống|tải về|tải lại|download|xem trước|preview|kiểm duyệt|duyệt|từ chối|lý do|chỉnh sửa|thay thế|xóa|bình luận|yêu thích|đã lưu|lịch sử|thông báo|tìm kiếm|lọc|khoa|viện|môn|học phần|năm học|pdf|docx|doc|pptx|xlsx|zip|rar|txt|nổi bật|mới nhất|phổ biến|tóm tắt|trắc nghiệm|tự luận|chương|mục lục|file này|tài liệu này|hướng dẫn sử dụng|của tôi|của mình|đã đăng|đã tải|thống kê)/iu',
+            '/(web|website|trang|tmu|thương mại|hệ thống|tài liệu|học liệu|học tập|kiến thức|bài học|giáo trình|slide|bài giảng|đề thi|đề cương|bài tập|ôn tập|ôn thi|thi cử|kiểm tra|tiểu luận|luận văn|khóa luận|báo cáo|nghiên cứu|tín chỉ|giảng viên|sinh viên|diễn đàn|hỏi đáp|forum|chatbot|trợ lý ai|tài khoản|đăng nhập|đăng ký|đăng xuất|mật khẩu|hồ sơ|avatar|ảnh đại diện|đăng tải|upload|tải lên|tải xuống|tải về|tải lại|download|xem trước|preview|kiểm duyệt|duyệt|từ chối|lý do|chỉnh sửa|thay thế|xóa|bình luận|yêu thích|đã lưu|lịch sử|thông báo|tìm kiếm|lọc|khoa|viện|môn|học phần|năm học|pdf|docx|doc|pptx|xlsx|zip|rar|txt|nổi bật|mới nhất|phổ biến|tóm tắt|trắc nghiệm|tự luận|chương|mục lục|file này|tài liệu này|hướng dẫn sử dụng|của tôi|của mình|đã đăng|đã tải|thống kê)/iu',
             $lower
         );
 
@@ -568,7 +568,7 @@ class AiService
 
             // 4. Public approved documents catalog (up to 25 newest/popular)
             $catalogDocs = $db->fetchAll(
-                "SELECT d.id, d.title, d.description, d.academic_year, d.view_count, d.download_count,
+                "SELECT d.id, d.title, d.description, d.view_count, d.download_count,
                         d.original_filename, d.file_size,
                         s.name AS subject_name, f.name AS faculty_name, dt.name AS type_name,
                         u.full_name AS uploader_name
@@ -607,6 +607,44 @@ class AiService
                 $staticSections[] = '[DANH SÁCH TÀI LIỆU CÔNG KHAI]: Hiện chưa có tài liệu công khai nào được duyệt.';
             }
 
+            // 5. Forum Q&A summary & recent approved posts
+            $forumApprovedCount = (int)$db->fetchColumn("SELECT COUNT(*) FROM forum_posts WHERE status = 'approved' AND deleted_at IS NULL");
+            $forumAnswerCount   = (int)$db->fetchColumn("SELECT COUNT(*) FROM forum_answers WHERE deleted_at IS NULL");
+            $forumStatLine      = "[DIỄN ĐÀN HỎI ĐÁP]: {$forumApprovedCount} câu hỏi công khai | {$forumAnswerCount} câu trả lời";
+            if (auth() && isModerator()) {
+                $forumPendingCount = (int)$db->fetchColumn("SELECT COUNT(*) FROM forum_posts WHERE status = 'pending' AND deleted_at IS NULL");
+                $forumStatLine .= " | ({$forumPendingCount} câu hỏi chờ duyệt)";
+            }
+
+            $forumPosts = $db->fetchAll(
+                "SELECT p.id, p.title, p.view_count,
+                        (SELECT COUNT(*) FROM forum_answers fa WHERE fa.post_id = p.id AND fa.deleted_at IS NULL) AS answer_count,
+                        s.name AS subject_name, u.full_name AS author_name
+                 FROM forum_posts p
+                 LEFT JOIN subjects s ON p.subject_id = s.id
+                 LEFT JOIN users u ON p.user_id = u.id
+                 WHERE p.status = 'approved' AND p.deleted_at IS NULL
+                 ORDER BY p.created_at DESC
+                 LIMIT 15"
+            );
+            if (!empty($forumPosts)) {
+                $forumLines = [$forumStatLine];
+                foreach ($forumPosts as $fp) {
+                    $forumLines[] = sprintf(
+                        '- Câu hỏi #%d "%s" | Môn: %s | Tác giả: %s | Trả lời: %d, Xem: %d',
+                        (int)$fp['id'],
+                        $fp['title'],
+                        $fp['subject_name'] ?? 'Chung',
+                        $fp['author_name'] ?? 'Sinh viên',
+                        (int)$fp['answer_count'],
+                        (int)$fp['view_count']
+                    );
+                }
+                $staticSections[] = implode("\n", $forumLines);
+            } else {
+                $staticSections[] = $forumStatLine;
+            }
+
             $staticContext = implode("\n\n", $staticSections);
             $_SESSION['ai_context_cache']      = $staticContext;
             $_SESSION['ai_context_cached_at']  = time();
@@ -634,7 +672,7 @@ class AiService
                     $currentDoc['faculty_name'] ?? 'TMU',
                     $currentDoc['subject_name'] ?? 'Chưa rõ',
                     $currentDoc['type_name'] ?? 'Tài liệu',
-                    $currentDoc['academic_year'] ?: 'Không xác định',
+                    !empty($currentDoc['academic_year']) ? $currentDoc['academic_year'] : 'Không xác định',
                     $currentDoc['uploader_name'] ?? 'Thành viên TMU',
                     (int)($currentDoc['view_count'] ?? 0),
                     (int)($currentDoc['download_count'] ?? 0),
@@ -809,17 +847,83 @@ class AiService
             return null;
         }
 
-        $mime = $doc['mime_type'] ?? '';
-        if ($mime === 'text/plain') {
+        $mime = (string)($doc['mime_type'] ?? '');
+        $ext  = strtolower(pathinfo((string)($doc['original_filename'] ?? $path), PATHINFO_EXTENSION));
+
+        if ($mime === 'text/plain' || $ext === 'txt') {
             $content = @file_get_contents($path, false, null, 0, 16384);
             return $content !== false ? mb_convert_encoding($content, 'UTF-8', 'UTF-8') : null;
         }
 
-        if ($mime === 'application/pdf' && filesize($path) <= 8388608) {
-            return $this->extractPdfTextSample($path);
+        if ($mime === 'application/pdf' || $ext === 'pdf') {
+            if (filesize($path) <= 26214400) { // 25MB
+                return $this->extractPdfTextSample($path);
+            }
+            return null;
+        }
+
+        if ($ext === 'docx' || str_contains($mime, 'wordprocessingml')) {
+            return $this->extractDocxText($path);
+        }
+
+        if ($ext === 'pptx' || str_contains($mime, 'presentationml')) {
+            return $this->extractPptxText($path);
         }
 
         return null;
+    }
+
+    private function extractDocxText(string $path): ?string
+    {
+        if (!class_exists('ZipArchive')) {
+            return null;
+        }
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) {
+            return null;
+        }
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+        if (!is_string($xml) || $xml === '') {
+            return null;
+        }
+        $xml  = str_replace(['</w:p>', '</w:tr>', '<w:br/>', '<w:tab/>'], ["\n", "\n", "\n", ' '], $xml);
+        $text = html_entity_decode(strip_tags($xml), ENT_QUOTES | ENT_XML1, 'UTF-8');
+        $text = trim(preg_replace("/[ \t]+/u", ' ', preg_replace("/\n{3,}/u", "\n\n", $text) ?? $text) ?? '');
+        return mb_strlen($text) >= 20 ? mb_substr($text, 0, 8000) : null;
+    }
+
+    private function extractPptxText(string $path): ?string
+    {
+        if (!class_exists('ZipArchive')) {
+            return null;
+        }
+        $zip = new \ZipArchive();
+        if ($zip->open($path) !== true) {
+            return null;
+        }
+        $slides = [];
+        for ($i = 1; $i <= 60; $i++) {
+            $xml = $zip->getFromName("ppt/slides/slide{$i}.xml");
+            if (!is_string($xml)) {
+                if ($i > 1) {
+                    break;
+                }
+                continue;
+            }
+            $xml  = str_replace(['</a:p>', '<a:br/>'], ["\n", "\n"], $xml);
+            $txt  = trim(html_entity_decode(strip_tags($xml), ENT_QUOTES | ENT_XML1, 'UTF-8'));
+            $txt  = trim(preg_replace('/\s+/u', ' ', $txt) ?? '');
+            if ($txt !== '') {
+                $slides[] = "[Slide {$i}] {$txt}";
+            }
+            if (mb_strlen(implode("\n", $slides)) > 8000) {
+                break;
+            }
+        }
+        $zip->close();
+        $result = trim(implode("\n", $slides));
+        return mb_strlen($result) >= 20 ? mb_substr($result, 0, 8000) : null;
     }
 
     /**
@@ -828,14 +932,17 @@ class AiService
     private function extractPdfTextSample(string $path): ?string
     {
         $raw = @file_get_contents($path);
-        if ($raw === false || !preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $raw, $matches)) {
+        if ($raw === false || !preg_match_all('/stream\s*\r?\n(.*?)\r?\nendstream/s', $raw, $matches)) {
             return null;
         }
 
         $collected = '';
-        foreach (array_slice($matches[1], 0, 40) as $stream) {
+        foreach (array_slice($matches[1], 0, 50) as $stream) {
             $decoded = @gzuncompress($stream);
-            $chunk   = $decoded !== false ? $decoded : $stream;
+            if ($decoded === false) {
+                $decoded = @gzinflate($stream);
+            }
+            $chunk = $decoded !== false ? $decoded : $stream;
             if (!str_contains($chunk, 'BT')) {
                 continue;
             }
@@ -851,12 +958,18 @@ class AiService
                     }
                 }
             }
-            if (mb_strlen($collected) > 5000) {
+            if (mb_strlen($collected) > 8000) {
                 break;
             }
         }
 
+        if (function_exists('iconv')) {
+            $collected = @iconv('UTF-8', 'UTF-8//IGNORE', $collected) ?: '';
+        } else {
+            $collected = mb_convert_encoding($collected, 'UTF-8', 'UTF-8');
+        }
         $collected = trim(preg_replace('/[^\p{L}\p{N}\s.,:;!?()\-\/]+/u', ' ', $collected) ?? '');
-        return mb_strlen($collected) >= 30 ? mb_substr($collected, 0, 5000) : null;
+        $collected = trim(preg_replace('/\s{2,}/u', ' ', $collected) ?? $collected);
+        return mb_strlen($collected) >= 30 ? mb_substr($collected, 0, 6000) : null;
     }
 }

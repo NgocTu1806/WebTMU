@@ -202,6 +202,9 @@ class FileService
         if ($ext === 'doc' || str_contains($mimeType, 'msword')) {
             return 'application/msword';
         }
+        if ($ext === 'txt' || str_starts_with($mimeType, 'text/plain')) {
+            return 'text/plain; charset=utf-8';
+        }
         return $mimeType !== '' ? $mimeType : 'application/octet-stream';
     }
 
