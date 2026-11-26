@@ -159,11 +159,17 @@ class AuthController extends Controller
 
     public function forgotForm(array $params = []): void
     {
+        if (auth()) {
+            $this->redirect('/');
+        }
         $this->view('auth.forgot_password', ['title' => 'Quên mật khẩu — TMU Tài Liệu']);
     }
 
     public function forgot(array $params = []): void
     {
+        if (auth()) {
+            $this->redirect('/');
+        }
         $this->csrfValidate();
         $email = strtolower(trim($_POST['email'] ?? ''));
 
@@ -172,13 +178,13 @@ class AuthController extends Controller
             storeOldInput();
             flash('errors', serialize($errors));
             $this->redirect('/forgot-password');
-        }
+    }
 
         $rawToken = $this->authService->sendPasswordReset($email);
 
         if (empty($rawToken)) {
             storeOldInput();
-            flash('error', 'Địa chỉ email này không tồn tại trong hệ thống. Vui lòng kiểm tra lại!');
+            flash('error', 'Địa chỉ email này không tồn tại. Vui lòng kiểm tra lại!');
             $this->redirect('/forgot-password');
         }
 

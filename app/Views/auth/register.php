@@ -97,6 +97,12 @@ document.getElementById('togglePwd')?.addEventListener('click', function() {
     pwd.type = pwd.type === 'password' ? 'text' : 'password';
     icon.className = pwd.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
 });
+document.getElementById('student_id')?.addEventListener('input', function() {
+    const emailInput = document.getElementById('email');
+    if (!emailInput) return;
+    const studentId = this.value.replace(/\s+/g, '').toLowerCase();
+    emailInput.value = studentId ? `${studentId}@mailsv.tmu.edu.vn` : '';
+});
 </script>
 <?php include __DIR__ . '/../components/otp_modal.php'; ?>
 <script>

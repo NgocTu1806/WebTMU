@@ -14,7 +14,7 @@
                         <div class="mb-3">
                             <label for="password" class="form-label fw-semibold">Mật khẩu mới</label>
                             <input type="password" class="form-control" id="password" name="password"
-                                   placeholder="Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường và số" required autofocus>
+                                   placeholder="Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường,số và ký tự đặc biệt" required autofocus>
                         </div>
 
                         <div class="mb-3">
