@@ -61,7 +61,7 @@
                                     <i class="bi bi-eye"></i>
                                 </button>
                             </div>
-                            <div class="form-text">Ít nhất 8 ký tự, gồm chữ cái, chữ số và ký tự đặc biệt (!@#$%...)</div>
+                            <div class="form-text">Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt (!@#$%...)</div>
                         </div>
 
                         <div class="mb-4">

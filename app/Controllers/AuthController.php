@@ -178,7 +178,7 @@ class AuthController extends Controller
             storeOldInput();
             flash('errors', serialize($errors));
             $this->redirect('/forgot-password');
-    }
+        }
 
         $rawToken = $this->authService->sendPasswordReset($email);
 

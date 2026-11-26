@@ -134,9 +134,9 @@ class Validator
                 break;
             case 'password_rules':
                 if ($value !== null && $value !== '') {
-                // Yêu cầu: Tối thiểu 8 ký tự, gồm ít nhất 1 chữ cái, 1 chữ số và 1 ký tự đặc biệt
-                    if (!preg_match('/^(?=.*[A-Za-z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]).{8,}$/', (string)$value)) {
-                        $this->errors[$field][] = "Mật khẩu phải có ít nhất 8 ký tự, bao gồm cả chữ cái, chữ số và ký tự đặc biệt.";
+                // Yêu cầu: Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt
+                    if (!preg_match('/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};\':"\\|,.<>\/?]).{8,}$/', (string)$value)) {
+                        $this->errors[$field][] = "Mật khẩu phải có tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.";
                     }
                 }
                 break;
