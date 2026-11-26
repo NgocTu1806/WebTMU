@@ -344,11 +344,15 @@ class DocumentController extends Controller
             $this->redirect('/my-documents');
         }
 
-        // Only owner or admin can edit
+        // Only admin, or owner while document is still pending approval
         if (userId() !== (int)$doc['user_id'] && !isAdmin()) {
             http_response_code(403);
             $this->view('errors.403', ['title' => 'Từ chối truy cập']);
             return;
+        }
+        if (!isAdmin() && ($doc['status'] ?? '') !== 'pending') {
+            flash('error', 'Tài liệu đã qua kiểm duyệt, thành viên không thể chỉnh sửa.');
+            $this->redirect('/my-documents');
         }
 
         $this->view('documents.edit', [
@@ -373,6 +377,10 @@ class DocumentController extends Controller
         if (userId() !== (int)$doc['user_id'] && !isAdmin()) {
             http_response_code(403);
             die('Từ chối truy cập.');
+        }
+        if (!isAdmin() && ($doc['status'] ?? '') !== 'pending') {
+            flash('error', 'Tài liệu đã qua kiểm duyệt, thành viên không thể chỉnh sửa.');
+            $this->redirect('/my-documents');
         }
 
         [$data, $errors] = $this->extractAndValidateDocumentInput();
@@ -467,6 +475,10 @@ class DocumentController extends Controller
         if (userId() !== (int)$doc['user_id'] && !isAdmin()) {
             http_response_code(403);
             die('Từ chối truy cập.');
+        }
+        if (!isAdmin() && ($doc['status'] ?? '') !== 'pending') {
+            flash('error', 'Tài liệu đã qua kiểm duyệt, thành viên không thể chỉnh sửa.');
+            $this->redirect('/my-documents');
         }
 
         $this->documentModel->softDelete($doc['id']);

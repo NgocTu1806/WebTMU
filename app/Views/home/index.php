@@ -169,11 +169,11 @@
                     Tham gia ngay Diễn đàn hỏi đáp sinh viên TMU để cùng trao đổi, thảo luận đề thi và nhận trợ giúp từ bạn bè trong trường!
                 </p>
             </div>
-            <div class="col-lg-4 text-lg-end">
-                <a href="<?= url('/forum') ?>" class="btn btn-warning btn-lg fw-bold px-4 shadow-sm me-2">
+            <div class="col-lg-4 d-flex flex-wrap gap-2 justify-content-lg-end justify-content-center">
+                <a href="<?= url('/forum') ?>" class="btn btn-warning btn-lg fw-bold px-4 shadow-sm text-nowrap">
                     <i class="bi bi-chat-square-text me-1"></i>Khám phá Diễn đàn
                 </a>
-                <a href="<?= url('/forum/create') ?>" class="btn btn-outline-light btn-lg fw-semibold">
+                <a href="<?= url('/forum/create') ?>" class="btn btn-outline-light btn-lg fw-semibold text-nowrap">
                     <i class="bi bi-plus-circle me-1"></i>Đặt câu hỏi
                 </a>
             </div>

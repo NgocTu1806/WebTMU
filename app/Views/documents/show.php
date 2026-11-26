@@ -303,7 +303,8 @@
                 </table>
             </div>
 
-            <?php if (auth() && (userId() === (int)$doc['user_id'] || isAdmin())): ?>
+            <?php $canManageDoc = auth() && (isAdmin() || (userId() === (int)$doc['user_id'] && ($doc['status'] ?? '') === 'pending')); ?>
+            <?php if ($canManageDoc): ?>
                 <div class="card border-0 shadow-sm p-3">
                     <h6 class="fw-bold border-bottom pb-2 mb-3">Tác vụ quản lý</h6>
                     <div class="d-grid gap-2">
@@ -321,7 +322,7 @@
 </div>
 
 <!-- Modal xác nhận xóa tài liệu -->
-<?php if (auth() && (userId() === (int)$doc['user_id'] || isAdmin())): ?>
+<?php if ($canManageDoc): ?>
     <div class="modal fade" id="deleteDocModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">

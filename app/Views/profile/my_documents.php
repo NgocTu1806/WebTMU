@@ -85,14 +85,20 @@ $tabs          = [
                                     <i class="bi bi-download"></i> <?= (int)$doc['download_count'] ?>
                                 </td>
                                 <td class="small text-muted"><?= formatDate($doc['created_at']) ?></td>
-                                <td class="text-end">
-                                    <a href="<?= url('/documents/' . $doc['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary" title="Sửa">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-sm btn-outline-danger" title="Xóa"
-                                            data-bs-toggle="modal" data-bs-target="#deleteMyDocModal-<?= (int)$doc['id'] ?>">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
+                                <td class="text-end text-nowrap">
+                                    <?php if (isAdmin() || ($doc['status'] ?? '') === 'pending'): ?>
+                                        <a href="<?= url('/documents/' . $doc['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary" title="Sửa">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" title="Xóa"
+                                                data-bs-toggle="modal" data-bs-target="#deleteMyDocModal-<?= (int)$doc['id'] ?>">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <span class="text-muted small" title="Tài liệu đã qua kiểm duyệt không thể sửa hoặc xóa">
+                                            <i class="bi bi-lock"></i>
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
