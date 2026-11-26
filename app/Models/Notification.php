@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Core\Model;
+use App\Services\MailService;
 
 class Notification extends Model
 {
@@ -35,6 +36,14 @@ class Notification extends Model
 
     public function send(int $userId, string $type, string $title, string $message, string $link = ''): void
     {
+    public function send(
+        int $userId,
+        string $type,
+        string $title,
+        string $message,
+        string $link = '',
+        bool $sendEmail = true
+    ): void {
         $this->create([
             'user_id' => $userId,
             'type'    => $type,
@@ -42,6 +51,26 @@ class Notification extends Model
             'message' => $message,
             'link'    => $link,
         ]);
+        
+        if (!$sendEmail) {
+            return;
+        }
+        // Gửi song song qua email (bọc try/catch để lỗi SMTP không làm hỏng thao tác chính)
+        try {
+            $user = (new User())->findById($userId);
+            if ($user && !empty($user['email'])) {
+                (new MailService())->sendNotificationEmail(
+                    (string)$user['email'],
+                    (string)($user['full_name'] ?? 'Sinh viên TMU'),
+                    $title,
+                    $message,
+                    $link,
+                    $type
+                );
+            }
+        } catch (\Throwable $e) {
+            error_log('[Notification] Lỗi gửi email thông báo cho user #' . $userId . ': ' . $e->getMessage());
+        }
     }
 }
 
