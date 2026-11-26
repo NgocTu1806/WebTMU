@@ -167,6 +167,62 @@ class FileService
         }
     }
 
+    /**
+     * Resolve absolute path of a stored document file (checks approved/ then pending/).
+     */
+    public function resolveDocumentPath(string $filename): ?string
+    {
+        $safeName = basename($filename);
+        if ($safeName === '') {
+            return null;
+        }
+
+        foreach (['approved', 'pending'] as $dir) {
+            $path = $this->normalizePath($this->config['document_path'] . $dir . '/' . $safeName);
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Determine MIME type for inline document preview.
+     */
+    public function resolvePreviewContentType(string $originalFilename, string $mimeType): string
+    {
+        $ext = strtolower(pathinfo($originalFilename, PATHINFO_EXTENSION));
+        if ($mimeType === 'application/pdf' || $ext === 'pdf') {
+            return 'application/pdf';
+        }
+        if ($ext === 'docx' || str_contains($mimeType, 'wordprocessingml')) {
+            return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        }
+        if ($ext === 'doc' || str_contains($mimeType, 'msword')) {
+            return 'application/msword';
+        }
+        return $mimeType !== '' ? $mimeType : 'application/octet-stream';
+    }
+
+    /**
+     * Stream a stored document file either inline (preview) or as an attachment (download).
+     */
+    public function streamDocument(string $diskPath, string $originalFilename, string $contentType, bool $inline = true): void
+    {
+        $disposition = $inline ? 'inline' : 'attachment';
+        header('Content-Type: ' . $contentType);
+        header('Content-Disposition: ' . $disposition . '; filename="' . rawurlencode($originalFilename) . '"');
+        header('Content-Length: ' . filesize($diskPath));
+        header($inline ? 'Cache-Control: private, max-age=3600' : 'Cache-Control: private');
+        if ($inline) {
+            header('X-Frame-Options: SAMEORIGIN');
+            header('X-Content-Type-Options: nosniff');
+        }
+        readfile($diskPath);
+        exit;
+    }
+
     public function uploadAvatar(array $file): array
     {
         if ($file['error'] !== UPLOAD_ERR_OK) {

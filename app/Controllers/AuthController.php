@@ -369,18 +369,6 @@ class AuthController extends Controller
         }
     }
 
-    /**
-     * Chỉ chấp nhận đường dẫn nội bộ dạng "/path" (chặn "//evil.com", "/\evil.com", "http://...").
-     */
-    private function safeReturnUrl(string $url): string
-    {
-        $url = trim($url);
-        if ($url === '' || $url[0] !== '/' || str_starts_with($url, '//') || str_contains($url, '\\')) {
-            return '';
-        }
-        return $url;
-    }
-
     /** Chuẩn hóa dữ liệu form đăng ký. */
     private function registerInput(): array
     {

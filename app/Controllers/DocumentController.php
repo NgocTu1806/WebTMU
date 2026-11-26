@@ -11,15 +11,20 @@ use App\Models\Subject;
 use App\Models\DocumentType;
 use App\Models\Comment;
 use App\Models\Favorite;
+use App\Services\DocumentFormService;
 use App\Services\FileService;
 
 class DocumentController extends Controller
 {
     private Document $documentModel;
+    private DocumentFormService $formService;
+    private FileService $fileService;
 
     public function __construct()
     {
         $this->documentModel = new Document();
+        $this->formService   = new DocumentFormService();
+        $this->fileService   = new FileService();
     }
 
     public function index(array $params = []): void
@@ -105,38 +110,17 @@ class DocumentController extends Controller
             die('Tài liệu không tồn tại hoặc chưa được duyệt.');
         }
 
-        $ext = strtolower(pathinfo((string)$doc['original_filename'], PATHINFO_EXTENSION));
-        $mime = (string)$doc['mime_type'];
-        if ($mime === 'application/pdf' || $ext === 'pdf') {
-            $contentType = 'application/pdf';
-        } elseif ($ext === 'docx' || str_contains($mime, 'wordprocessingml')) {
-            $contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        } elseif ($ext === 'doc' || str_contains($mime, 'msword')) {
-            $contentType = 'application/msword';
-        } else {
-            $contentType = $mime ?: 'application/octet-stream';
-        }
-
-        $safeName = basename((string)$doc['file_path']);
-        $baseDir  = STORAGE_PATH . DIRECTORY_SEPARATOR . 'documents' . DIRECTORY_SEPARATOR;
-        $filePath = $baseDir . 'approved' . DIRECTORY_SEPARATOR . $safeName;
-        if (!is_file($filePath)) {
-            $filePath = $baseDir . 'pending' . DIRECTORY_SEPARATOR . $safeName;
-        }
-
-        if ($safeName === '' || !is_file($filePath)) {
+        $filePath = $this->fileService->resolveDocumentPath((string)$doc['file_path']);
+        if ($filePath === null) {
             http_response_code(404);
             die('File không tồn tại trên server.');
         }
 
-        header('Content-Type: ' . $contentType);
-        header('Content-Disposition: inline; filename="' . rawurlencode($doc['original_filename']) . '"');
-        header('Content-Length: ' . filesize($filePath));
-        header('Cache-Control: private, max-age=3600');
-        header('X-Frame-Options: SAMEORIGIN');
-        header('X-Content-Type-Options: nosniff');
-        readfile($filePath);
-        exit;
+        $contentType = $this->fileService->resolvePreviewContentType(
+            (string)$doc['original_filename'],
+            (string)$doc['mime_type']
+        );
+        $this->fileService->streamDocument($filePath, (string)$doc['original_filename'], $contentType, true);
     }
 
     public function download(array $params = []): void
@@ -153,14 +137,8 @@ class DocumentController extends Controller
             $this->redirect('/login');
         }
 
-        $safeName = basename((string)$doc['file_path']);
-        $baseDir  = STORAGE_PATH . DIRECTORY_SEPARATOR . 'documents' . DIRECTORY_SEPARATOR;
-        $filePath = $baseDir . 'approved' . DIRECTORY_SEPARATOR . $safeName;
-        if (!is_file($filePath)) {
-            $filePath = $baseDir . 'pending' . DIRECTORY_SEPARATOR . $safeName;
-        }
-
-        if ($safeName === '' || !is_file($filePath)) {
+        $filePath = $this->fileService->resolveDocumentPath((string)$doc['file_path']);
+        if ($filePath === null) {
             flash('error', 'File không tồn tại trên server. Vui lòng liên hệ quản trị viên.');
             $this->redirect('/documents/' . $doc['id']);
         }
@@ -170,12 +148,7 @@ class DocumentController extends Controller
         $histModel = new \App\Models\DownloadHistory();
         $histModel->record($doc['id'], userId());
 
-        header('Content-Type: ' . $doc['mime_type']);
-        header('Content-Disposition: attachment; filename="' . rawurlencode($doc['original_filename']) . '"');
-        header('Content-Length: ' . filesize($filePath));
-        header('Cache-Control: private');
-        readfile($filePath);
-        exit;
+        $this->fileService->streamDocument($filePath, (string)$doc['original_filename'], (string)$doc['mime_type'], false);
     }
 
     public function create(array $params = []): void
@@ -193,65 +166,14 @@ class DocumentController extends Controller
         ]);
     }
 
-    /**
-     * Collect and validate shared document metadata fields from POST.
-     *
-     * @return array{0: array, 1: array}
-     */
     private function extractAndValidateDocumentInput(): array
     {
-        $data = [
-            'title'            => trim($_POST['title'] ?? ''),
-            'description'      => trim($_POST['description'] ?? ''),
-            'subject_id'       => (int)($_POST['subject_id'] ?? 0),
-            'document_type_id' => (int)($_POST['document_type_id'] ?? 0),
-        ];
-
-        $errors = $this->validate($data, [
-            'title'       => 'required|min:5|max:500',
-            'description' => 'max:3000',
-        ]);
-
-        if ($data['subject_id'] <= 0 || !(new Subject())->findById($data['subject_id'])) {
-            $errors['subject_id'][] = 'Vui lòng chọn môn học hợp lệ.';
-        }
-
-        if ($data['document_type_id'] <= 0 || !(new DocumentType())->findById($data['document_type_id'])) {
-            $errors['document_type_id'][] = 'Vui lòng chọn loại tài liệu hợp lệ.';
-        }
-
-        return [$data, $errors];
+        return $this->formService->extractAndValidateInput($_POST);
     }
 
-    /**
-     * Check duplicate title within the same subject and duplicate file content (SHA-256 checksum).
-     */
     private function checkDuplicateErrors(array $data, ?array $file, int $excludeId = 0): array
     {
-        $errors = [];
-
-        if (!empty($data['title']) && (int)($data['subject_id'] ?? 0) > 0) {
-            $dupTitle = $this->documentModel->findDuplicateTitleInSubject(
-                (string)$data['title'],
-                (int)$data['subject_id'],
-                $excludeId
-            );
-            if ($dupTitle) {
-                $errors['title'][] = 'Đã tồn tại tài liệu "' . $dupTitle['title'] . '" trong môn học này. Vui lòng không đăng trùng tài liệu.';
-            }
-        }
-
-        if ($file && !empty($file['tmp_name']) && ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK && is_file($file['tmp_name'])) {
-            $checksum = hash_file('sha256', $file['tmp_name']);
-            if ($checksum) {
-                $dupFile = $this->documentModel->findByChecksum($checksum, $excludeId);
-                if ($dupFile) {
-                    $errors['document_file'][] = 'File tài liệu này đã tồn tại trên hệ thống (trùng nội dung với: "' . $dupFile['title'] . '").';
-                }
-            }
-        }
-
-        return $errors;
+        return $this->formService->checkDuplicateErrors($this->documentModel, $data, $file, $excludeId);
     }
 
     public function store(array $params = []): void

@@ -1,9 +1,12 @@
 <?php declare(strict_types=1); ?>
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
     <div>
         <h4 class="fw-bold mb-1"><i class="bi bi-files text-primary me-2"></i>Tất cả tài liệu hệ thống</h4>
-        <p class="text-muted small mb-0">Quản lý toàn bộ tài liệu đã đăng tải trên website</p>
+        <p class="text-muted small mb-0">Quản lý toàn bộ tài liệu và tệp tin đã đăng tải trên website</p>
     </div>
+    <a href="<?= url('/admin/documents/create') ?>" class="btn btn-primary btn-sm fw-semibold">
+        <i class="bi bi-cloud-arrow-up me-1"></i>Thêm tài liệu mới
+    </a>
 </div>
 
 <!-- Filter -->
@@ -89,9 +92,15 @@
                             </td>
                             <td><?= (int)$doc['download_count'] ?></td>
                             <td class="small text-muted"><?= formatDate($doc['created_at']) ?></td>
-                            <td class="text-end">
-                                <a href="<?= url('/documents/' . $doc['id']) ?>" class="btn btn-sm btn-outline-info" title="Xem" target="_blank">
+                            <td class="text-end text-nowrap">
+                                <a href="<?= url('/admin/documents/' . $doc['id'] . '/preview') ?>" class="btn btn-sm btn-outline-info" title="Xem trước file" target="_blank">
                                     <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="<?= url('/admin/documents/' . $doc['id'] . '/download') ?>" class="btn btn-sm btn-outline-success" title="Tải file về máy">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                <a href="<?= url('/admin/documents/' . $doc['id'] . '/edit') ?>" class="btn btn-sm btn-outline-primary" title="Chỉnh sửa / Thay file">
+                                    <i class="bi bi-pencil-square"></i>
                                 </a>
                                 <?php if ($doc['status'] === 'approved'): ?>
                                     <button type="button" class="btn btn-sm btn-outline-warning" title="Ẩn tài liệu"

@@ -257,6 +257,14 @@
                                         <?= formatDate((string)$doc['created_at'], 'H:i d/m/Y') ?>
                                     </td>
                                     <td class="text-end text-nowrap">
+                                        <a href="<?= url('/admin/documents/' . $doc['id'] . '/preview') ?>" target="_blank"
+                                           class="btn btn-sm btn-outline-info" title="Xem file chờ duyệt">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="<?= url('/admin/documents/' . $doc['id'] . '/download') ?>"
+                                           class="btn btn-sm btn-outline-primary me-1" title="Tải file kiểm tra">
+                                            <i class="bi bi-download"></i>
+                                        </a>
                                         <button type="button" class="btn btn-sm btn-success"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#approveModal-<?= (int)$doc['id'] ?>">

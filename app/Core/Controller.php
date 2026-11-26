@@ -49,11 +49,16 @@ abstract class Controller
         exit;
     }
 
-    protected function requireLogin(): void
+    protected function requireLogin(string $loginRoute = '/login', string $prompt = 'Vui lòng đăng nhập để tiếp tục.'): void
     {
         if (!auth()) {
-            flash('error', 'Vui lòng đăng nhập để tiếp tục.');
-            $this->redirect('/login');
+            flash('error', $prompt);
+            $returnUrl = currentRequestRelativeUrl();
+            $target = $loginRoute;
+            if ($returnUrl !== '' && $returnUrl !== $loginRoute) {
+                $target .= '?return=' . urlencode($returnUrl);
+            }
+            $this->redirect($target);
         }
 
         $user = (new \App\Models\User())->findById((int)userId());
@@ -73,7 +78,7 @@ abstract class Controller
                 session_start();
             }
             flash('error', $lockMessage);
-            $this->redirect('/login');
+            $this->redirect($loginRoute);
         }
 
         // Sync role and status changes immediately
@@ -85,13 +90,34 @@ abstract class Controller
 
     protected function requireRole(string ...$roles): void
     {
-        $this->requireLogin();
+        $isAdminPath = str_starts_with(currentRequestUriPath(), '/admin');
+        $loginRoute  = $isAdminPath ? '/admin/login' : '/login';
+        $prompt      = $isAdminPath
+            ? 'Vui lòng đăng nhập tài khoản quản trị để tiếp tục.'
+            : 'Vui lòng đăng nhập để tiếp tục.';
+
+        $this->requireLogin($loginRoute, $prompt);
         $user = currentUser();
         if (!in_array($user['role'] ?? '', $roles)) {
             http_response_code(403);
             $this->view('errors.403', ['user' => $user], 'main');
             exit;
         }
+    }
+
+    /**
+     * Allow only internal relative paths (blocks protocol-relative //evil.com, backslashes, or external URLs).
+     */
+    protected function safeReturnUrl(string $url, string $requiredPrefix = '/'): string
+    {
+        $url = trim($url);
+        if ($url === '' || $url[0] !== '/' || str_starts_with($url, '//') || str_contains($url, '\\')) {
+            return '';
+        }
+        if ($requiredPrefix !== '/' && !str_starts_with($url, $requiredPrefix)) {
+            return '';
+        }
+        return $url;
     }
 
     protected function validate(array $data, array $rules): array

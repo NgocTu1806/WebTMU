@@ -265,6 +265,30 @@ function storeOldInput(): void
 }
 
 /**
+ * Return normalized application route path (without subdirectory basePath or query string).
+ */
+function currentRequestUriPath(): string
+{
+    $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+    $uri = rawurldecode($uri);
+    $basePath = rawurldecode(rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/'));
+    if ($basePath !== '' && str_starts_with($uri, $basePath)) {
+        $uri = substr($uri, strlen($basePath));
+    }
+    return '/' . ltrim($uri, '/');
+}
+
+/**
+ * Return current route path including query string for safe post-login redirects.
+ */
+function currentRequestRelativeUrl(): string
+{
+    $path = currentRequestUriPath();
+    $query = $_SERVER['QUERY_STRING'] ?? '';
+    return $query !== '' ? $path . '?' . $query : $path;
+}
+
+/**
  * Clear old input.
  */
 function clearOldInput(): void

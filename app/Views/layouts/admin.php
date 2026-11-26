@@ -140,7 +140,7 @@ ob_start();
             <div class="d-flex align-items-center gap-2 flex-shrink-0">
                 <?php $user = currentUser(); ?>
                 <span class="text-muted small d-none d-sm-inline"><?= e($user['full_name'] ?? '') ?> (<?= e($user['role'] ?? '') ?>)</span>
-                <form action="<?= url('/logout') ?>" method="POST" class="mb-0">
+                <form action="<?= url('/admin/logout') ?>" method="POST" class="mb-0">
                     <?= csrfField() ?>
                     <button class="btn btn-sm btn-outline-danger" type="submit" title="Đăng xuất">
                         <i class="bi bi-box-arrow-right"></i>
