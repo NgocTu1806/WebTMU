@@ -128,13 +128,10 @@
 
         <hr class="border-light border-opacity-10 my-4">
 
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2 small text-white-50">
-            <p class="mb-0 text-center text-md-start">
+        <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-2 small text-white-50">
+            <p class="mb-0 text-center">
                 &copy; <?= date('Y') ?> <strong class="text-white">TMU Tài Liệu</strong>. Dự án học tập — Không phải cổng thông tin chính thức của Trường Đại học Thương mại.
             </p>
-            <a href="#top" class="footer-link d-inline-flex align-items-center gap-1">
-                <i class="bi bi-arrow-up-circle"></i>Lên đầu trang
-            </a>
         </div>
     </div>
 </footer>

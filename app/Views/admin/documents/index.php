@@ -94,12 +94,10 @@
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 <?php if ($doc['status'] === 'approved'): ?>
-                                    <form action="<?= url('/admin/documents/' . $doc['id'] . '/hide') ?>" method="POST" class="d-inline">
-                                        <?= csrfField() ?>
-                                        <button type="submit" class="btn btn-sm btn-outline-warning" title="Ẩn tài liệu">
-                                            <i class="bi bi-eye-slash"></i>
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm btn-outline-warning" title="Ẩn tài liệu"
+                                            data-bs-toggle="modal" data-bs-target="#hideDocModal-<?= (int)$doc['id'] ?>">
+                                        <i class="bi bi-eye-slash"></i>
+                                    </button>
                                 <?php elseif ($doc['status'] === 'hidden'): ?>
                                     <form action="<?= url('/admin/documents/' . $doc['id'] . '/unhide') ?>" method="POST" class="d-inline">
                                         <?= csrfField() ?>
@@ -134,6 +132,57 @@
             <?php endfor; ?>
         </ul>
     </nav>
+<?php endif; ?>
+
+<!-- Modals xác nhận ẩn tài liệu -->
+<?php if (!empty($docs['items'])): ?>
+    <?php foreach ($docs['items'] as $doc): ?>
+        <?php if ($doc['status'] === 'approved'): ?>
+            <div class="modal fade" id="hideDocModal-<?= (int)$doc['id'] ?>" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content border-0 shadow">
+                        <div class="modal-header border-bottom bg-warning bg-opacity-10 py-3">
+                            <h6 class="modal-title fw-bold text-warning-emphasis mb-0 d-flex align-items-center">
+                                <i class="bi bi-eye-slash-fill fs-5 me-2"></i>Xác nhận ẩn tài liệu #<?= (int)$doc['id'] ?>
+                            </h6>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body p-4">
+                            <div class="d-flex align-items-start gap-3 mb-3">
+                                <div class="p-3 bg-warning bg-opacity-10 rounded-circle text-warning flex-shrink-0">
+                                    <i class="bi bi-eye-slash fs-2"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1 text-dark"><?= e($doc['title']) ?></h6>
+                                    <div class="small text-muted mb-2">
+                                        <span><i class="bi bi-person me-1"></i><?= e($doc['uploader_name'] ?? '—') ?></span> &bull;
+                                        <span><i class="bi bi-book me-1"></i><?= e($doc['subject_name'] ?? '—') ?></span>
+                                    </div>
+                                    <span class="badge bg-light text-secondary border"><?= e($doc['type_name'] ?? 'Tài liệu') ?></span>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-warning d-flex align-items-center mb-0 py-2 px-3 small border-0 bg-warning bg-opacity-10 text-warning-emphasis">
+                                <i class="bi bi-info-circle-fill fs-5 me-2 flex-shrink-0"></i>
+                                <div>
+                                    Tài liệu sẽ tạm thời bị ẩn khỏi danh sách công khai và người dùng sẽ không thể xem hoặc tải xuống cho đến khi được hiện lại.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer border-top bg-light py-2">
+                            <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Hủy bỏ</button>
+                            <form action="<?= url('/admin/documents/' . $doc['id'] . '/hide') ?>" method="POST" class="d-inline mb-0">
+                                <?= csrfField() ?>
+                                <button type="submit" class="btn btn-warning btn-sm px-3 fw-semibold">
+                                    <i class="bi bi-eye-slash-fill me-1"></i>Xác nhận ẩn
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+    <?php endforeach; ?>
 <?php endif; ?>
 
 <!-- Modals xác nhận xóa tài liệu -->

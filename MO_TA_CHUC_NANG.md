@@ -65,6 +65,10 @@ Hệ thống **TMU Tài Liệu** là nền tảng chia sẻ và lưu trữ tài 
 - **Khu vực tương tác tài khoản:**
   - Khi chưa đăng nhập: Hiển thị 2 nút `Đăng nhập` và `Đăng ký`.
   - Khi đã đăng nhập: Hiển thị avatar đại diện, chuông thông báo (kèm số lượng chưa đọc), và dropdown menu cá nhân (Hồ sơ, Tài liệu của tôi, Yêu thích, Lịch sử tải, Trang quản trị nếu là Admin/Mod, Đăng xuất).
+- **Giao diện Responsive Mobile (`< 992px`):**
+  - Khi bấm nút 3 gạch sẽ mở **Mobile Drawer 2 cấp** trượt từ trái sang với nội dung căn trái, icon bo góc và mũi tên điều hướng (`>`).
+  - Bấm vào mục **Người dùng** (có mũi tên `>`) sẽ trượt sang màn hình tài khoản (có nút quay lại `←`) hiển thị đầy đủ các mục thông tin cá nhân, quản trị và đăng xuất.
+  - Phông chữ, kích thước ảnh banner/avatar và bảng dữ liệu được tự động thu gọn hợp lý trên màn hình nhỏ; mọi thao tác xóa/từ chối/khóa tài khoản đều hiển thị **Popup Modal xác nhận** đồng nhất thay cho hộp thoại trình duyệt.
 
 #### 2. Hero Section (Banner chào đón & Tìm kiếm trọng tâm)
 - Khẩu hiệu giới thiệu hệ thống học liệu TMU kết hợp hình ảnh khuôn viên trường TMU.
@@ -179,15 +183,16 @@ Người dùng có thể kết hợp đồng thời nhiều bộ lọc để tì
   - Tên giảng viên / Tác giả tài liệu.
   - Mô tả nội dung tóm tắt.
   - Chọn tệp đính kèm (hỗ trợ kéo thả).
-- **Kiểm soát tính hợp lệ & an toàn:**
+- **Kiểm soát tính hợp lệ, chống trùng lặp & an toàn:**
   - Định dạng cho phép: PDF, DOCX, DOC, PPTX, PPT, XLSX, XLS, ZIP, RAR.
   - Giới hạn dung lượng tối đa: 50MB.
+  - **Chống đăng trùng lặp tài liệu (Duplicate Detection):** Kiểm tra trùng tiêu đề trong cùng môn học và kiểm tra trùng nội dung tệp bằng mã băm **SHA-256 checksum** (chặn đăng lại tệp đã tồn tại dù đổi tên).
   - Tệp tải lên được lưu trữ ở thư mục an toàn ngoài vùng public access trực tiếp.
-  - Tệp mới đăng sẽ tự động mang trạng thái **`pending` (Chờ duyệt)** và chuyển đến hàng đợi của ban kiểm duyệt.
+  - Tệp mới đăng sẽ tự động mang trạng thái **`pending` (Chờ duyệt)** và chuyển đến hàng đợi của ban kiểm duyệt (tài liệu do Admin/Moderator đăng được tự động duyệt `approved`).
 
 #### 5. Chỉnh sửa & Xóa tài liệu
-- **Chỉnh sửa:** Người đăng (hoặc Admin/Mod) có thể cập nhật lại thông tin tiêu đề, mô tả, phân loại nếu có sai sót.
-- **Xóa:** Người đăng có quyền xóa tài liệu của mình; Quản trị viên/Kiểm duyệt viên có quyền xóa các tài liệu vi phạm quy định.
+- **Trước khi được duyệt (`pending`):** Thành viên đăng tài liệu có thể chỉnh sửa lại thông tin/tệp hoặc xóa tài liệu của mình.
+- **Sau khi đã được duyệt (`approved`) hoặc đã qua kiểm duyệt:** Thành viên **không thể** tự chỉnh sửa hoặc xóa tài liệu; chỉ **Quản trị viên (`Admin`)** mới có quyền chỉnh sửa hoặc xóa vĩnh viễn.
 
 #### 6. Đánh giá chất lượng tài liệu (Rating System)
 - Sinh viên đã đăng nhập có thể chấm điểm tài liệu theo thang từ **1 đến 5 sao** kèm lời nhận xét.
@@ -265,7 +270,7 @@ Người dùng có thể kết hợp đồng thời nhiều bộ lọc để tì
 #### 1. Đăng ký tài khoản (Sign Up)
 - Đường dẫn: `/register`
 - Nhập thông tin: Họ và tên, Mã sinh viên (MSSV), Email (khuyến khích định dạng `@tmu.edu.vn`), Mật khẩu và Xác nhận mật khẩu.
-- Hệ thống hỗ trợ xác thực mã OTP gửi về Email để kích hoạt tài khoản chính chủ.
+- Hệ thống gửi mã **OTP 6 chữ số** qua **SMTP Gmail (PHPMailer)** có hiệu lực 60 giây (tự động khóa 5 phút nếu nhập sai quá 5 lần) để xác thực tài khoản chính chủ.
 - Mật khẩu được băm an toàn bằng thuật toán `Bcrypt`.
 
 #### 2. Đăng nhập hệ thống (Sign In)
@@ -292,7 +297,7 @@ Người dùng có thể kết hợp đồng thời nhiều bộ lọc để tì
   - 🟡 **Chờ duyệt (`pending`):** Đang trong hàng đợi kiểm duyệt của ban quản trị.
   - 🟢 **Đã duyệt (`approved`):** Đã công khai trên hệ thống cho toàn trường xem và tải.
   - 🔴 **Bị từ chối (`rejected`):** Kèm lý do phản hồi chi tiết từ kiểm duyệt viên để sinh viên chỉnh sửa lại.
-- Nút sửa thông tin và xóa tài liệu.
+- Nút sửa thông tin và xóa tài liệu chỉ khả dụng khi tài liệu đang ở trạng thái **Chờ duyệt (`pending`)**; sau khi đã được duyệt, thao tác sửa/xóa sẽ bị khóa đối với thành viên.
 
 #### 6. Tủ tài liệu Yêu thích (Favorites Collection)
 - Đường dẫn: `/favorites`
@@ -359,7 +364,7 @@ Người dùng có thể kết hợp đồng thời nhiều bộ lọc để tì
 
 #### 5. Quản lý Tài liệu toàn hệ thống (Document Management)
 - Đường dẫn: `/admin/documents`
-- Tra cứu tất cả tài liệu trong CSDL theo từ khóa, khoa môn, trạng thái.
+- Tra cứu và lọc tài liệu trong CSDL theo **từ khóa tiêu đề**, **môn học**, **loại tài liệu** (Giáo trình, Slide bài giảng, Đề thi...), và **trạng thái** (`approved`, `pending`, `rejected`, `hidden`).
 - Tính năng **Ẩn (`Hide`)** hoặc **Hiện (`Unhide`)** tài liệu (áp dụng khi tài liệu đang bị khiếu nại bản quyền).
 - Tính năng **Xóa vĩnh viễn** tài liệu và tệp tin vật lý khỏi máy chủ.
 
@@ -386,7 +391,7 @@ Dưới đây là bảng tổng hợp quyền truy cập của từng nhóm ngư
 | | Đọc trước file PDF trực tiếp (Iframe preview) | ✔ | ✔ | ✔ | ✔ |
 | | Tải file tài liệu về máy | ✔ | ✔ | ✔ | ✔ |
 | | Đăng tải tài liệu mới (vào hàng chờ duyệt) | ✗ | ✔ | ✔ | ✔ |
-| | Chỉnh sửa / Xóa tài liệu cá nhân | ✗ | ✔ | ✔ | ✔ |
+| | Chỉnh sửa / Xóa tài liệu cá nhân | ✗ | ✔ *(Chỉ khi chờ duyệt)* | ✔ *(Chỉ khi chờ duyệt)* | ✔ |
 | | Đánh giá sao & Đánh dấu yêu thích | ✗ | ✔ | ✔ | ✔ |
 | | Báo cáo tài liệu vi phạm | ✗ | ✔ | ✔ | ✔ |
 | **Bình luận** | Xem danh sách bình luận | ✔ | ✔ | ✔ | ✔ |

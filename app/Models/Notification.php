@@ -34,8 +34,6 @@ class Notification extends Model
         );
     }
 
-    public function send(int $userId, string $type, string $title, string $message, string $link = ''): void
-    {
     public function send(
         int $userId,
         string $type,

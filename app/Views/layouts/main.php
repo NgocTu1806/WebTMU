@@ -347,6 +347,16 @@ if ($isLoggedIn) {
 <!-- Main Content -->
 <main>
     <?= $content ?>
+    <div class="container d-flex justify-content-end mt-4">
+        <button type="button"
+                class="btn btn-primary rounded-circle shadow-sm d-inline-flex align-items-center justify-content-center"
+                style="width: 44px; height: 44px;"
+                onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
+                title="Lên đầu trang"
+                aria-label="Lên đầu trang">
+            <i class="bi bi-arrow-up fs-5"></i>
+        </button>
+    </div>
 </main>
 
 <!-- Footer -->
