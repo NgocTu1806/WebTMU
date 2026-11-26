@@ -157,13 +157,19 @@ class AuthController extends Controller
         $this->redirect('/login');
     }
 
-    public function forgotForm(array $params = []): void
+   public function forgotForm(array $params = []): void
     {
+        if (auth()) {
+            $this->redirect('/');
+        }
         $this->view('auth.forgot_password', ['title' => 'Quên mật khẩu — TMU Tài Liệu']);
     }
 
     public function forgot(array $params = []): void
     {
+        if (auth()) {
+            $this->redirect('/');
+        }
         $this->csrfValidate();
         $email = strtolower(trim($_POST['email'] ?? ''));
 
