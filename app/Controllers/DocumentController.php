@@ -223,6 +223,37 @@ class DocumentController extends Controller
         return [$data, $errors];
     }
 
+    /**
+     * Check duplicate title within the same subject and duplicate file content (SHA-256 checksum).
+     */
+    private function checkDuplicateErrors(array $data, ?array $file, int $excludeId = 0): array
+    {
+        $errors = [];
+
+        if (!empty($data['title']) && (int)($data['subject_id'] ?? 0) > 0) {
+            $dupTitle = $this->documentModel->findDuplicateTitleInSubject(
+                (string)$data['title'],
+                (int)$data['subject_id'],
+                $excludeId
+            );
+            if ($dupTitle) {
+                $errors['title'][] = 'Đã tồn tại tài liệu "' . $dupTitle['title'] . '" trong môn học này. Vui lòng không đăng trùng tài liệu.';
+            }
+        }
+
+        if ($file && !empty($file['tmp_name']) && ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK && is_file($file['tmp_name'])) {
+            $checksum = hash_file('sha256', $file['tmp_name']);
+            if ($checksum) {
+                $dupFile = $this->documentModel->findByChecksum($checksum, $excludeId);
+                if ($dupFile) {
+                    $errors['document_file'][] = 'File tài liệu này đã tồn tại trên hệ thống (trùng nội dung với: "' . $dupFile['title'] . '").';
+                }
+            }
+        }
+
+        return $errors;
+    }
+
     public function store(array $params = []): void
     {
         $this->requireLogin();
@@ -233,6 +264,11 @@ class DocumentController extends Controller
         // Validate file
         if (empty($_FILES['document_file']['name'])) {
             $errors['document_file'][] = 'Vui lòng chọn file tài liệu.';
+        }
+
+        $dupErrors = $this->checkDuplicateErrors($data, $_FILES['document_file'] ?? null);
+        foreach ($dupErrors as $field => $msgs) {
+            $errors[$field] = array_merge($errors[$field] ?? [], $msgs);
         }
 
         if (!empty($errors)) {
@@ -340,6 +376,12 @@ class DocumentController extends Controller
         }
 
         [$data, $errors] = $this->extractAndValidateDocumentInput();
+        $uploadedFile = !empty($_FILES['document_file']['name']) ? $_FILES['document_file'] : null;
+        $dupErrors = $this->checkDuplicateErrors($data, $uploadedFile, (int)$doc['id']);
+        foreach ($dupErrors as $field => $msgs) {
+            $errors[$field] = array_merge($errors[$field] ?? [], $msgs);
+        }
+
         if (!empty($errors)) {
             storeOldInput();
             flash('errors', serialize($errors));

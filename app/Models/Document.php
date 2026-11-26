@@ -212,15 +212,39 @@ class Document extends Model
         return (int)$this->db->fetchColumn($sql, $params) > 0;
     }
 
-    public function checksumExists(string $checksum, int $excludeId = 0): bool
+    public function findByChecksum(string $checksum, int $excludeId = 0): ?array
     {
-        $sql = "SELECT COUNT(*) FROM documents WHERE checksum = ? AND deleted_at IS NULL";
+        $sql = "SELECT id, title, status FROM documents
+                WHERE checksum = ? AND deleted_at IS NULL AND status != 'rejected'";
         $params = [$checksum];
         if ($excludeId > 0) {
             $sql .= " AND id != ?";
             $params[] = $excludeId;
         }
-        return (int)$this->db->fetchColumn($sql, $params) > 0;
+        $sql .= " LIMIT 1";
+        return $this->db->fetch($sql, $params);
+    }
+
+    public function findDuplicateTitleInSubject(string $title, int $subjectId, int $excludeId = 0): ?array
+    {
+        $normalizedTitle = mb_strtolower(trim($title));
+        if ($normalizedTitle === '' || $subjectId <= 0) {
+            return null;
+        }
+        $sql = "SELECT id, title, status FROM documents
+                WHERE subject_id = ? AND LOWER(TRIM(title)) = ? AND deleted_at IS NULL AND status != 'rejected'";
+        $params = [$subjectId, $normalizedTitle];
+        if ($excludeId > 0) {
+            $sql .= " AND id != ?";
+            $params[] = $excludeId;
+        }
+        $sql .= " LIMIT 1";
+        return $this->db->fetch($sql, $params);
+    }
+
+    public function checksumExists(string $checksum, int $excludeId = 0): bool
+    {
+        return $this->findByChecksum($checksum, $excludeId) !== null;
     }
 
     public function getStats(): array
