@@ -96,7 +96,63 @@ class MailService
 
         return $this->send($toEmail, $fullName, '[TMU Tài Liệu] Yêu cầu đặt lại mật khẩu', $body, 'ResetLink');
     }
+    
+    public function sendNotificationEmail(
+        string $toEmail,
+        string $fullName,
+        string $title,
+        string $message,
+        string $link = '',
+        string $type = 'info'
+    ): bool {
+        $fullLink = '';
+        if ($link !== '') {
+            $fullLink = str_starts_with($link, 'http://') || str_starts_with($link, 'https://')
+                ? $link
+                : (function_exists('url') ? url($link) : $link);
+        }
 
+        $this->writeDevLog(sprintf('To: %s (%s) | Notif [%s]: %s | Link: %s', $toEmail, $fullName, $type, $title, $fullLink));
+
+        $accentColor = match ($type) {
+            'approved' => '#2E7D32',
+            'rejected' => '#D32F2F',
+            'hidden'   => '#EF6C00',
+            default    => '#1565C0',
+        };
+
+        $safeName    = $this->esc($fullName);
+        $safeTitle   = $this->esc($title);
+        $safeMessage = nl2br($this->esc($message));
+        $buttonHtml  = '';
+        if ($fullLink !== '') {
+            $safeLink   = $this->esc($fullLink);
+            $buttonHtml = "
+                <p style='text-align: center; margin: 24px 0;'>
+                    <a href='{$safeLink}' style='background: {$accentColor}; color: #fff; padding: 11px 22px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;'>
+                        Xem chi tiết
+                    </a>
+                </p>
+                <p style='font-size: 12px; color: #777;'>Nếu nút không hoạt động, copy đường dẫn sau vào trình duyệt:<br>{$safeLink}</p>
+            ";
+        }
+
+        $body = "
+            <div style='font-family: Arial, sans-serif; max-width: 520px; margin: auto; border: 1px solid #e0e0e0; padding: 20px; border-radius: 8px;'>
+                <h2 style='color: {$accentColor}; margin-top: 0;'>{$safeTitle}</h2>
+                <p>Xin chào <strong>{$safeName}</strong>,</p>
+                <div style='background: #F8F9FA; border-left: 4px solid {$accentColor}; padding: 12px 14px; border-radius: 4px; color: #333; line-height: 1.5;'>
+                    {$safeMessage}
+                </div>
+                {$buttonHtml}
+                <p style='color: #888; font-size: 12px; margin-top: 18px; border-top: 1px solid #eee; padding-top: 10px;'>
+                    Email này được gửi tự động từ hệ thống <strong>TMU Tài Liệu</strong>.
+                </p>
+            </div>
+        ";
+
+        return $this->send($toEmail, $fullName, "[TMU Tài Liệu] {$title}", $body, 'Notification');
+    }
     /**
      * Gửi email HTML dùng chung cho mọi loại thư.
      */
