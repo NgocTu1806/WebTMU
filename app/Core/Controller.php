@@ -8,7 +8,7 @@ abstract class Controller
     protected function view(string $template, array $data = [], string $layout = 'main'): void
     {
         // Make data available as variables
-        extract($data);
+        extract($data, EXTR_SKIP);
 
         // Capture view content
         ob_start();
@@ -107,8 +107,8 @@ abstract class Controller
             if (isAjax()) {
                 $this->json(['error' => 'Phiên làm việc đã hết hạn. Vui lòng tải lại trang.'], 403);
             }
-            http_response_code(403);
-            die('CSRF token mismatch. Vui lòng thử lại.');
+            flash('error', 'Phiên làm việc đã hết hạn. Vui lòng thử lại.');
+            $this->back();
         }
     }
 }

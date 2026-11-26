@@ -9,18 +9,18 @@
 
                     <form action="<?= url('/reset-password') ?>" method="POST">
                         <?= csrfField() ?>
-                        <input type="hidden" name="token" value="<?= htmlspecialchars($token ?? ($_GET['token'] ?? '')) ?>">
+                        <input type="hidden" name="token" value="<?= e($token ?? '') ?>">
 
                         <div class="mb-3">
                             <label for="password" class="form-label fw-semibold">Mật khẩu mới</label>
                             <input type="password" class="form-control" id="password" name="password"
-                                   placeholder="Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt" required autofocus>
+                                   placeholder="Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt" required autofocus autocomplete="new-password">
                         </div>
 
                         <div class="mb-3">
                             <label for="password_confirmation" class="form-label fw-semibold">Xác nhận mật khẩu mới</label>
                             <input type="password" class="form-control" id="password_confirmation" name="password_confirmation"
-                                   placeholder="Nhập lại mật khẩu mới" required>
+                                   placeholder="Nhập lại mật khẩu mới" required autocomplete="new-password">
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100 fw-semibold py-2">

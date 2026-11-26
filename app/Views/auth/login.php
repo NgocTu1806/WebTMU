@@ -12,7 +12,7 @@
 
                     <form action="<?= url('/login') ?>" method="POST" novalidate>
                         <?= csrfField() ?>
-                        <input type="hidden" name="return_url" value="<?= e($return_url ?? ($_GET['return'] ?? '')) ?>">
+                        <input type="hidden" name="return_url" value="<?= e($return_url ?? '') ?>">
 
                         <div class="mb-3">
                             <label for="email" class="form-label fw-semibold">Email</label>
@@ -20,7 +20,7 @@
                                 <span class="input-group-text"><i class="bi bi-envelope"></i></span>
                                 <input type="email" class="form-control" id="email" name="email"
                                        value="<?= old('email') ?>"
-                                       placeholder="nguyenvana@mailsv.tmu.edu.vn" required autofocus>
+                                       placeholder="nguyenvana@mailsv.tmu.edu.vn" required autofocus autocomplete="username">
                             </div>
                         </div>
 
@@ -29,7 +29,7 @@
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-lock"></i></span>
                                 <input type="password" class="form-control" id="password" name="password"
-                                       placeholder="Nhập mật khẩu" required>
+                                       placeholder="Nhập mật khẩu" required autocomplete="current-password">
                                 <button class="btn btn-outline-secondary" type="button" id="togglePwd">
                                     <i class="bi bi-eye"></i>
                                 </button>

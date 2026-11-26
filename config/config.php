@@ -71,14 +71,15 @@ return [
         'timeout'          => 60,
         'max_pdf_bytes'    => 8388608, // 8MB tối đa gửi kèm PDF (cho Gemini)
     ],
-    'mail' => [
+    // Tài khoản SMTP: đặt trong config/mail.local.php (KHÔNG commit lên Git) hoặc biến môi trường
+    'mail' => array_merge([
         'host'       => getenv('MAIL_HOST') ?: 'smtp.gmail.com',
         'port'       => (int)(getenv('MAIL_PORT') ?: 587),
         'encryption' => getenv('MAIL_ENCRYPTION') ?: 'tls',
-        'username'   => getenv('MAIL_USERNAME') ?: '', // Điền email gửi (ví dụ: your_email@gmail.com)
-        'password'   => getenv('MAIL_PASSWORD') ?: '', // Điền mật khẩu ứng dụng Google (16 ký tự)
+        'username'   => getenv('MAIL_USERNAME') ?: '',
+        'password'   => getenv('MAIL_PASSWORD') ?: '',
         'from_email' => getenv('MAIL_FROM_ADDRESS') ?: '',
         'from_name'  => getenv('MAIL_FROM_NAME') ?: 'TMU Tài Liệu',
-    ],
+    ], is_file(__DIR__ . '/mail.local.php') ? (array)require __DIR__ . '/mail.local.php' : []),
 ];
 

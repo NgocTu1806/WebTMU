@@ -13,3 +13,6 @@ storage/logs/*
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Local secrets (SMTP credentials)
+config/mail.local.php

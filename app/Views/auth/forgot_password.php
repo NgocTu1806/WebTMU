@@ -12,7 +12,7 @@
                         <div class="mb-3">
                             <label for="email" class="form-label fw-semibold">Email sinh viên TMU</label>
                             <input type="email" class="form-control" id="email" name="email"
-                                   value="<?= old('email') ?>" placeholder="21d123456@mailsv.tmu.edu.vn" required autofocus>
+                                   value="<?= old('email') ?>" placeholder="21d123456@mailsv.tmu.edu.vn" required autofocus autocomplete="email">
                         </div>
                         <button type="submit" class="btn btn-primary w-100 fw-semibold py-2">
                             Gửi liên kết đặt lại mật khẩu

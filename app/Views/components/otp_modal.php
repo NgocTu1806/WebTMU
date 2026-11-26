@@ -1,6 +1,7 @@
-<div id="otpModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+<div id="otpModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;"
+     role="dialog" aria-modal="true" aria-labelledby="otpModalTitle">
     <div style="background:#fff; width:100%; max-width:400px; border-radius:10px; padding:24px; box-shadow:0 8px 24px rgba(0,0,0,0.2); text-align:center; font-family:sans-serif;">
-        <h3 style="margin:0 0 8px; color:#1565C0;">Xác thực mã OTP</h3>
+        <h3 id="otpModalTitle" style="margin:0 0 8px; color:#1565C0;">Xác thực mã OTP</h3>
         <p id="otpSubText" style="font-size:14px; color:#555; margin:0 0 14px;">Đang gửi mã OTP tới email của bạn...</p>
 
         <div style="margin-bottom:14px; font-size:14px; font-weight:600;">
@@ -8,9 +9,10 @@
         </div>
 
         <input type="text" id="otpCodeInput" maxlength="6" placeholder="••••••"
+               inputmode="numeric" autocomplete="one-time-code" pattern="\d{6}"
                style="width:75%; padding:10px; font-size:22px; letter-spacing:8px; text-align:center; border:2px solid #ccc; border-radius:8px; margin-bottom:12px;">
 
-        <div id="otpFeedback" style="min-height:20px; font-size:13px; margin-bottom:14px; font-weight:500;"></div>
+        <div id="otpFeedback" aria-live="polite" style="min-height:20px; font-size:13px; margin-bottom:14px; font-weight:500;"></div>
 
         <div style="display:flex; gap:10px;">
             <button type="button" id="btnVerifyOtp"
@@ -32,11 +34,13 @@
 
 <script>
 const OtpManager = (() => {
-    let timer = null;
+    let expireTimer = null;
+    let resendTimer = null;
     let sendUrl = '';
     let verifyUrl = '';
     let payload = {};
     let fallbackRedirect = '';
+    let busy = false;
 
     const overlay     = document.getElementById('otpModalOverlay');
     const subText     = document.getElementById('otpSubText');
@@ -46,36 +50,55 @@ const OtpManager = (() => {
     const btnVerify   = document.getElementById('btnVerifyOtp');
     const btnResend   = document.getElementById('btnResendOtp');
     const btnClose    = document.getElementById('btnCloseOtpModal');
+    const resendLabel = btnResend.textContent.trim();
 
     function setMsg(text, isError = true) {
         feedbackEl.style.color = isError ? '#D32F2F' : '#2E7D32';
-        feedbackEl.textContent = text;
+        feedbackEl.textContent = text || '';
     }
 
-    function startTimer(seconds) {
-        clearInterval(timer);
+    function setVerifyEnabled(enabled) {
+        btnVerify.disabled = !enabled;
+        btnVerify.style.opacity = enabled ? '1' : '0.5';
+    }
+
+    function formatTime(sec) {
+        return String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
+    }
+
+    function startExpireTimer(seconds) {
+        clearInterval(expireTimer);
         let left = seconds;
-        btnVerify.disabled = false;
-        btnVerify.style.opacity = '1';
-
-        const render = () => {
-            const m = String(Math.floor(left / 60)).padStart(2, '0');
-            const s = String(left % 60).padStart(2, '0');
-            countdownEl.textContent = `${m}:${s}`;
-        };
-
-        render();
-        timer = setInterval(() => {
+        setVerifyEnabled(true);
+        countdownEl.textContent = formatTime(left);
+        expireTimer = setInterval(() => {
             left--;
             if (left <= 0) {
-                clearInterval(timer);
+                clearInterval(expireTimer);
                 countdownEl.textContent = '00:00';
-                btnVerify.disabled = true;
-                btnVerify.style.opacity = '0.5';
+                setVerifyEnabled(false);
                 setMsg('OTP không hợp lệ (đã hết hạn). Vui lòng nhấn gửi lại OTP.', true);
             } else {
-                render();
+                countdownEl.textContent = formatTime(left);
             }
+        }, 1000);
+    }
+
+    // Khóa nút "Gửi lại OTP" trong thời gian chờ để tránh spam email
+    function startResendCooldown(seconds) {
+        clearInterval(resendTimer);
+        let left = Math.max(0, parseInt(seconds, 10) || 0);
+        const render = () => {
+            btnResend.disabled = left > 0;
+            btnResend.style.opacity = left > 0 ? '0.6' : '1';
+            btnResend.textContent = left > 0 ? `${resendLabel} (${left}s)` : resendLabel;
+        };
+        render();
+        if (left <= 0) return;
+        resendTimer = setInterval(() => {
+            left--;
+            render();
+            if (left <= 0) clearInterval(resendTimer);
         }, 1000);
     }
 
@@ -84,74 +107,71 @@ const OtpManager = (() => {
         return el ? el.value : '';
     }
 
+    async function postForm(url, body) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': getCsrfToken()
+            },
+            body: new URLSearchParams(body)
+        });
+        try {
+            return await res.json();
+        } catch (e) {
+            return { success: false, message: 'Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.' };
+        }
+    }
+
     async function requestOtp() {
+        if (busy) return;
+        busy = true;
         btnResend.disabled = true;
         setMsg('Đang gửi mã OTP...', false);
         try {
-            const res = await fetch(sendUrl, {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': getCsrfToken()
-                },
-                body: new URLSearchParams(payload)
-            });
-            const rawText = await res.text();
-            console.log('Server response (send-otp):', rawText);
-            const data = JSON.parse(rawText);
+            const data = await postForm(sendUrl, payload);
             if (data.success) {
                 subText.textContent = data.message;
                 setMsg('');
                 inputEl.value = '';
                 inputEl.focus();
-                startTimer(data.expires_in || 60);
+                startExpireTimer(data.expires_in || 60);
+                startResendCooldown(data.resend_cooldown || 30);
+            } else if (data.cooldown) {
+                // Đang trong thời gian chờ: giữ nguyên mã OTP cũ và bộ đếm hiện tại
+                setMsg(data.message, true);
+                startResendCooldown(data.retry_after);
             } else {
-                clearInterval(timer);
+                clearInterval(expireTimer);
                 subText.textContent = 'Không thể gửi mã OTP';
                 countdownEl.textContent = '--:--';
-                btnVerify.disabled = true;
-                btnVerify.style.opacity = '0.5';
+                setVerifyEnabled(false);
                 setMsg(data.message, true);
+                startResendCooldown(0);
             }
         } catch (e) {
             setMsg('Lỗi kết nối máy chủ.', true);
+            startResendCooldown(0);
         } finally {
-            btnResend.disabled = false;
+            busy = false;
         }
     }
 
-    function open(config) {
-        sendUrl = config.sendUrl;
-        verifyUrl = config.verifyUrl;
-        payload = config.payload;
-        fallbackRedirect = config.redirectUrl || '';
-        inputEl.value = '';
-        setMsg('');
-        overlay.style.display = 'flex';
-        requestOtp();
-    }
-
-    btnVerify.addEventListener('click', async () => {
+    async function verifyOtp() {
+        if (busy || btnVerify.disabled) return;
         const otp = inputEl.value.trim();
-        if (otp.length !== 6) {
+        if (!/^\d{6}$/.test(otp)) {
             setMsg('Vui lòng nhập đủ 6 số OTP.', true);
             return;
         }
-        btnVerify.disabled = true;
+        busy = true;
+        setVerifyEnabled(false);
         try {
-            const res = await fetch(verifyUrl, {
-                method: 'POST',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': getCsrfToken()
-                },
-                body: new URLSearchParams({ ...payload, otp })
-            });
-            const rawText = await res.text();
-            console.log('Server response (verify-otp):', rawText);
-            const data = JSON.parse(rawText);
+            // Chỉ gửi mã OTP — dữ liệu form (kể cả mật khẩu) đã được lưu ở server khi gửi OTP
+            const data = await postForm(verifyUrl, { otp });
             if (data.success) {
-                clearInterval(timer);
+                clearInterval(expireTimer);
+                clearInterval(resendTimer);
                 setMsg(data.message, false);
                 setTimeout(() => {
                     if (data.redirect_url) {
@@ -159,34 +179,66 @@ const OtpManager = (() => {
                     } else if (fallbackRedirect) {
                         window.location.href = fallbackRedirect;
                     } else {
-                        overlay.style.display = 'none';
                         window.location.reload();
                     }
                 }, 1200);
+                return;
+            }
+            setMsg(data.message, true);
+            if (data.locked || data.expired) {
+                clearInterval(expireTimer);
             } else {
-                setMsg(data.message, true);
-                if (data.locked || data.expired) {
-                    clearInterval(timer);
-                    btnVerify.disabled = true;
-                    btnVerify.style.opacity = '0.5';
-                } else {
-                    btnVerify.disabled = false;
-                    inputEl.value = '';
-                    inputEl.focus();
-                }
+                setVerifyEnabled(true);
+                inputEl.value = '';
+                inputEl.focus();
             }
         } catch (e) {
             setMsg('Lỗi kết nối máy chủ.', true);
-            btnVerify.disabled = false;
+            setVerifyEnabled(true);
+        } finally {
+            busy = false;
         }
-    });
+    }
 
-    btnResend.addEventListener('click', requestOtp);
-    btnClose.addEventListener('click', () => {
-        clearInterval(timer);
+    function close() {
+        clearInterval(expireTimer);
+        clearInterval(resendTimer);
         overlay.style.display = 'none';
+        inputEl.value = '';
+        setMsg('');
+        startResendCooldown(0);
+    }
+
+    function open(config) {
+        sendUrl = config.sendUrl;
+        verifyUrl = config.verifyUrl;
+        payload = config.payload || {};
+        fallbackRedirect = config.redirectUrl || '';
+        inputEl.value = '';
+        setMsg('');
+        subText.textContent = 'Đang gửi mã OTP tới email của bạn...';
+        countdownEl.textContent = '--:--';
+        setVerifyEnabled(false);
+        overlay.style.display = 'flex';
+        requestOtp();
+    }
+
+    // Chỉ cho nhập chữ số, tối đa 6 ký tự
+    inputEl.addEventListener('input', () => {
+        inputEl.value = inputEl.value.replace(/\D/g, '').slice(0, 6);
+    });
+    // Nhấn Enter để xác nhận, Esc để đóng
+    inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); verifyOtp(); }
+    });
+    overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') close();
     });
 
-    return { open };
+    btnVerify.addEventListener('click', verifyOtp);
+    btnResend.addEventListener('click', requestOtp);
+    btnClose.addEventListener('click', close);
+
+    return { open, close };
 })();
 </script>

@@ -8,6 +8,10 @@ use App\Models\User;
 
 class AuthService
 {
+    public const BCRYPT_COST = 12;
+    // Hash b crypt hợp lệ (cost 12) dùng để so sánh giả khi email không tồn tại
+    private const DUMMY_HASH = '$2y$12$wL5wYN7jEQfxroPFWld.3OQ8Ba/Q8oEQJEoVI3SRT5eJABcBkW14.';
+
     private User $userModel;
     private Database $db;
 
@@ -17,6 +21,14 @@ class AuthService
         $this->db        = Database::getInstance();
     }
 
+    public static function hashPassword(string $password): string
+    {
+        return password_hash($password, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]);
+    }
+
+    /**
+     * Tạo tài khoản mới. Nhận 'password_hash' (đã băm sẵn — luồng OTP) hoặc 'password' (chưa băm).
+     */
     public function register(array $data): array
     {
         if ($this->userModel->emailExists($data['email'])) {
@@ -29,10 +41,12 @@ class AuthService
             return ['success' => false, 'errors' => ['student_id' => ['Mã sinh viên này đã được đăng ký.']]];
         }
 
+        $passwordHash = $data['password_hash'] ?? self::hashPassword((string)($data['password'] ?? ''));
+
         $userId = $this->userModel->create([
             'username'      => $data['username'],
             'email'         => $data['email'],
-            'password_hash' => password_hash($data['password'], PASSWORD_BCRYPT, ['cost' => 12]),
+            'password_hash' => $passwordHash,
             'full_name'     => $data['full_name'],
             'student_id'    => $data['student_id'] ?? null,
             'role'          => 'member',
@@ -56,7 +70,12 @@ class AuthService
 
         $user = $this->userModel->findByEmail($email);
 
-        if (!$user || !password_verify($password, $user['password_hash'])) {
+        // Luôn chạy password_verify (kể cả khi email không tồn tại) để thời gian phản hồi như nhau,
+        // tránh kẻ tấn công dò email tồn tại dựa vào tốc độ phản hồi.
+        $hash        = $user['password_hash'] ?? self::DUMMY_HASH;
+        $passwordOk  = password_verify($password, $hash);
+
+        if (!$user || !$passwordOk) {
             $attempts = $this->recordFailedAttempt($email, $ip);
             if ($attempts >= 5) {
                 return ['success' => false, 'error' => 'Quá nhiều lần thử. Tài khoản tạm khóa 15 phút.'];
@@ -98,34 +117,46 @@ class AuthService
         session_destroy();
     }
 
-    public function sendPasswordReset(string $email): ?string
+    /**
+     * Tạo token đặt lại mật khẩu. Trả về token gốc (gửi qua email) kèm thông tin user,
+     * hoặc null nếu email không tồn tại. Chỉ bản băm SHA-256 được lưu trong CSDL.
+     *
+     * @return array{token: string, user: array}|null
+     */
+    public function sendPasswordReset(string $email): ?array
     {
-        unset($_SESSION['dev_reset_token'], $_SESSION['dev_reset_email']);
-
         $user = $this->userModel->findByEmail($email);
         if (!$user) {
             return null;
         }
 
-        $rawToken    = bin2hex(random_bytes(32));
-        $hashedToken = hash('sha256', $rawToken);
-        $this->userModel->setResetToken((int)$user['id'], $hashedToken);
+        $rawToken = bin2hex(random_bytes(32));
+        $this->userModel->setResetToken((int)$user['id'], hash('sha256', $rawToken));
 
-        return $rawToken;
+        return ['token' => $rawToken, 'user' => $user];
+    }
+
+    /**
+     * Kiểm tra token đặt lại mật khẩu còn hợp lệ hay không (dùng trước khi hiển thị form).
+     */
+    public function isValidResetToken(string $token): bool
+    {
+        return $token !== '' && $this->userModel->findByResetToken($token) !== null;
     }
 
     public function resetPassword(string $token, string $newPassword): bool
     {
+        if ($token === '') {
+            return false;
+        }
         $user = $this->userModel->findByResetToken($token);
         if (!$user) {
             return false;
         }
 
-        $this->userModel->update((int)$user['id'], [
-            'password_hash' => password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]),
-        ]);
-        $this->userModel->clearResetToken((int)$user['id']);
-        $this->clearRememberToken((int)$user['id']);
+        // Cập nhật mật khẩu + xóa reset_token + xóa remember_token trong 1 câu lệnh
+        $this->userModel->updatePassword((int)$user['id'], self::hashPassword($newPassword));
+        $this->clearFailedAttempts((string)$user['email'], $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
 
         return true;
     }

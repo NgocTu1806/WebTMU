@@ -56,7 +56,7 @@
                             </label>
                             <div class="input-group">
                                 <input type="password" class="form-control" id="password" name="password"
-                                       placeholder="Mật khẩu bảo mật" required minlength="8">
+                                       placeholder="Mật khẩu bảo mật" required minlength="8" autocomplete="new-password">
                                 <button class="btn btn-outline-secondary" type="button" id="togglePwd">
                                     <i class="bi bi-eye"></i>
                                 </button>
@@ -69,7 +69,7 @@
                                 Xác nhận mật khẩu <span class="text-danger">*</span>
                             </label>
                             <input type="password" class="form-control" id="password_confirmation"
-                                   name="password_confirmation" placeholder="Nhập lại mật khẩu" required>
+                                   name="password_confirmation" placeholder="Nhập lại mật khẩu" required autocomplete="new-password">
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100 fw-semibold py-2">
@@ -108,6 +108,23 @@ document.getElementById('student_id')?.addEventListener('input', function() {
 <script>
 document.getElementById('registerForm')?.addEventListener('submit', function(e) {
     e.preventDefault();
+
+    // Kiểm tra nhanh phía trình duyệt để không tốn 1 lượt gửi OTP khi dữ liệu sai rõ ràng
+    // (server vẫn kiểm tra lại đầy đủ).
+    const pwd     = document.getElementById('password').value;
+    const confirm = document.getElementById('password_confirmation').value;
+    const pwdRule = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+    if (!pwdRule.test(pwd)) {
+        alert('Mật khẩu phải có tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.');
+        document.getElementById('password').focus();
+        return;
+    }
+    if (pwd !== confirm) {
+        alert('Xác nhận mật khẩu không khớp.');
+        document.getElementById('password_confirmation').focus();
+        return;
+    }
+
     const formData = Object.fromEntries(new FormData(this).entries());
     OtpManager.open({
         sendUrl: '<?= url('/register/send-otp') ?>',
