@@ -82,11 +82,6 @@ class AuthController extends Controller
         ]);
     }
 
-    /**
-     * POST /register (submit form thường, không qua OTP).
-     * Trước đây route này tạo tài khoản trực tiếp => có thể bỏ qua bước xác thực email.
-     * Nay chỉ kiểm tra dữ liệu và yêu cầu người dùng hoàn tất bước OTP.
-     */
     public function register(array $params = []): void
     {
         $this->redirectIfAuthenticated();
@@ -367,6 +362,18 @@ class AuthController extends Controller
         if (auth()) {
             $this->redirect('/');
         }
+    }
+
+    /**
+     * Chỉ chấp nhận đường dẫn nội bộ dạng "/path" (chặn "//evil.com", "/\evil.com", "http://...").
+     */
+    private function safeReturnUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '' || $url[0] !== '/' || str_starts_with($url, '//') || str_contains($url, '\\')) {
+            return '';
+        }
+        return $url;
     }
 
     /** Chuẩn hóa dữ liệu form đăng ký. */

@@ -109,7 +109,7 @@ document.getElementById('student_id')?.addEventListener('input', function() {
 document.getElementById('registerForm')?.addEventListener('submit', function(e) {
     e.preventDefault();
 
-    // Kiểm tra nhanh phía trình duyệt để không tốn 1 lượt gửi OTP khi dữ liệu sai rõ ràng
+    // Kiểm tra nhanh phía trình duyệt để không tốn lượt gửi OTP khi dữ liệu sai rõ ràng
     // (server vẫn kiểm tra lại đầy đủ).
     const pwd     = document.getElementById('password').value;
     const confirm = document.getElementById('password_confirmation').value;
